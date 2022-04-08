@@ -11,7 +11,10 @@
             android:id="@+id/nav_health"
             android:title="@string/menu_health_label"/>
         <item
-            android:id="@+id/nav_compter"
-            android:title="@string/menu_compter_label"/>
+            android:id="@+id/nav_computer"
+            android:title="@string/menu_computer_label"/>
+        <item
+            android:id="@+id/nav_favorite"
+            android:title="@string/menu_favorite_label"/>
     </group>
 </menu>

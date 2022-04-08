@@ -16,6 +16,8 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import jp.techacademy.yuji.ishibashi.qa_app.databinding.ListAnswerBinding
 import jp.techacademy.yuji.ishibashi.qa_app.databinding.ListQuestionDetailBinding
+import com.google.firebase.database.*
+import com.google.firebase.firestore.FieldValue
 
 class QuestionDetailListAdapter(context: Context, private val mQustion: Question) : BaseAdapter() {
     private val TAG: String = "QuestionDetailListAdapter"
@@ -85,54 +87,47 @@ class QuestionDetailListAdapter(context: Context, private val mQustion: Question
 
             var isFavorite = mQustion.favorite
             val favoriteImageView = binding_question_detail.favoriteImageView
-            favoriteImageView.apply {
-                setImageResource(if (isFavorite) R.drawable.ic_favorite_star else R.drawable.ic_favorite_star_border)
-                setOnClickListener {
-                    val userId = FirebaseAuth.getInstance().currentUser!!.uid
-                    if(isFavorite) {
-                        Log.d(TAG, "delete favorite start")
-                        //お気に入りデータを削除
-                        FirebaseFirestore.getInstance().collection(FavoritePATH)
-                            .whereEqualTo("userId", userId)
-                            .whereEqualTo("questionId", mQustion.questionUid)
-                            .addSnapshotListener {querySnapshot, firebaseFirestoreException ->
-                                if (firebaseFirestoreException != null) {
-                                    // 取得エラー
-                                    Log.d(TAG, "firebaseFirestoreException")
-                                    return@addSnapshotListener
-                                }
-                                querySnapshot!!.documents.forEach {
-                                    Log.d(TAG, "favorite delete")
-                                    it.reference.delete()
-                                }
-                            }
-                    } else {
-                        Log.d(TAG, "add favorite start")
-                        //お気に入りデータを追加
-                        // FirestoreQuestionのインスタンスを作成し、値を詰めていく
-                        var firestoreFavoriteQuestion = FirestoreFavoriteQuestion()
-                        firestoreFavoriteQuestion.userId = userId
-                        firestoreFavoriteQuestion.questionId = mQustion.questionUid
+            val userId = if(FirebaseAuth.getInstance().currentUser != null) FirebaseAuth.getInstance().currentUser!!.uid else ""
+            Log.d(TAG, "userId : $userId")
+            if(userId != "") {
+                favoriteImageView.apply {
+                    visibility = View.VISIBLE
+                    setImageResource(if (isFavorite) R.drawable.ic_favorite_star else R.drawable.ic_favorite_star_border)
+                    setOnClickListener {
+                        if (isFavorite) {
+                            Log.d(TAG, "delete favorite start")
+                            //updateでリストの要素を削除する
+                            FirebaseFirestore.getInstance().collection(FavoritePATH)
+                                .document(userId)
+                                .update("questionIdList", FieldValue.arrayRemove(mQustion.questionUid))
+                        } else {
+                            Log.d(TAG, "add favorite start")
 
-                        FirebaseFirestore.getInstance()
-                            .collection(FavoritePATH)
-                            .document(firestoreFavoriteQuestion.id)
-                            .set(firestoreFavoriteQuestion)
-                            .addOnSuccessListener {
-                                Log.d(TAG, "favorite add success")
-                                Toast.makeText(context, "お気に入り登録に成功しました", Toast.LENGTH_LONG).show()
+                            val userFavRef =  FirebaseFirestore.getInstance()
+                                .collection(FavoritePATH)
+                                .document(userId)
+
+                            userFavRef.get().addOnCompleteListener{
+                                if(it.result.exists()) {
+                                    //初回以外はupdateでリストの要素を追加する
+                                    userFavRef.update("questionIdList", FieldValue.arrayUnion(mQustion.questionUid))
+                                } else {
+                                    //初回はsetでドキュメントから作成
+                                    val data = HashMap<String, List<String>>()
+                                    data["questionIdList"] = listOf(mQustion.questionUid)
+                                    userFavRef.set(data)
+                                }
                             }
-                            .addOnFailureListener {
-                                Log.d(TAG, "favorite add failure")
-                                it.printStackTrace()
-                                Toast.makeText(context, "お気に入り登録に失敗しました", Toast.LENGTH_LONG).show()
-                            }
+                        }
+
+                        //お気に入りフラグを変更
+                        mQustion.favorite = !mQustion.favorite
+                        notifyDataSetChanged()
                     }
-
-                    //お気に入りフラグを変更
-                    mQustion.favorite = !mQustion.favorite
-                    notifyDataSetChanged()
                 }
+            } else {
+                //ログオフしている場合はお気に入りアイコンを非表示にする。
+                favoriteImageView.visibility = View.GONE
             }
         } else {
             if (convertView == null) {

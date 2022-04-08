@@ -3,15 +3,18 @@ package jp.techacademy.yuji.ishibashi.qa_app
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.BaseAdapter
 import android.widget.ImageView
 import android.widget.TextView
+import com.google.firebase.auth.FirebaseAuth
 import jp.techacademy.yuji.ishibashi.qa_app.databinding.ListQuestionsBinding
 
 class QuestionsListAdapter(context: Context) : BaseAdapter() {
+    private val TAG: String = "QuestionsListAdapter"
 
     private lateinit var binding: ListQuestionsBinding
 
@@ -62,8 +65,15 @@ class QuestionsListAdapter(context: Context) : BaseAdapter() {
 
         val isFavorite = mQuestionArrayList[position].favorite
         val favoriteImageView = binding.favoriteImageView
-        favoriteImageView.setImageResource(if (isFavorite) R.drawable.ic_favorite_star else R.drawable.ic_favorite_star_border)
 
+        Log.d(TAG, "currentUser : " + FirebaseAuth.getInstance().currentUser)
+        if(FirebaseAuth.getInstance().currentUser != null) {
+            favoriteImageView.visibility = View.VISIBLE
+            favoriteImageView.setImageResource(if (isFavorite) R.drawable.ic_favorite_star else R.drawable.ic_favorite_star_border)
+        } else {
+            //ログオフしている場合はお気に入りアイコンを非表示にする。
+            favoriteImageView.visibility = View.GONE
+        }
         return convertView
     }
 
